@@ -23,6 +23,8 @@ enum Commands {
         path: String,
         #[arg(short, long)]
         persist: bool,
+        #[arg(short, long)]
+        autopilot: bool, // AI kicks in only if this is passed
     },
     Clean,
 }
@@ -31,6 +33,23 @@ enum Commands {
 struct EnvironmentManifest {
     inject_host_python: bool,
     reason: String,
+}
+
+fn resolve_target_path(target: &str) -> Option<String> {
+    if target.starts_with("http") || target.starts_with("git@") {
+        println!("Detected remote URL. Cloning {}...", target);
+        let repo_name = target.split('/').last().unwrap_or("repo").replace(".git", "");
+        
+        let status = Command::new("git").args(["clone", target]).status();
+        if let Ok(stat) = status {
+            if stat.success() {
+                return Some(repo_name);
+            }
+        }
+        println!("Git clone failed.");
+        return None;
+    }
+    Some(target.to_string())
 }
 
 fn check_runtime(cmd: &str, arg: &str) -> Option<String> {
@@ -233,26 +252,37 @@ async fn main() {
             let (host_py, host_node) = scan_host_environment().await;
             let _ = analyze_codebase_with_groq(path, &host_py, &host_node).await;
         }
-        Commands::Run { path, persist } => {
-            println!("Preparing to run: {}", path);
+        Commands::Run { path, persist: _, autopilot } => {
+            let target_dir = match resolve_target_path(path) {
+                Some(dir) => dir,
+                None => {
+                    println!("Aborting run due to invalid target or failed clone.");
+                    return;
+                }
+            };
+            
+            println!("Preparing to run: {}", target_dir);
+            
             let (host_py, host_node) = scan_host_environment().await;
             
-            if let Some(manifest) = analyze_codebase_with_groq(path, &host_py, &host_node).await {
-                println!("AI Verdict: {}", manifest.reason);
-                
-                if manifest.inject_host_python {
-                    println!("\nAI approved host injection. Mounting local runtime into sandbox...");
-                    if *persist {
-                        println!("Mode: Persistent (Coming soon)");
-                    } else {
-                        println!("Mode: Ephemeral");
-                        build_ephemeral_sandbox(path);
+            if *autopilot {
+                println!("Autopilot enabled. Routing to AI...");
+                if let Some(manifest) = analyze_codebase_with_groq(&target_dir, &host_py, &host_node).await {
+                    println!("AI Verdict: {}", manifest.reason);
+                    if manifest.inject_host_python {
+                        build_ephemeral_sandbox(&target_dir);
                     }
-                } else {
-                    println!("\nAI rejected host injection. We need to pull an isolated runtime container (Track 2 pending feature).");
                 }
             } else {
-                println!("Failed to get safety manifest from AI. Aborting run to protect host.");
+                println!("Offline mode engaged. Running deterministic checks...");
+                let deps = extract_dependencies_via_ast(&target_dir);
+                
+                if deps == "[]" {
+                    println!("Offline Check: No third-party dependencies found. Safe to inject host runtime.");
+                    build_ephemeral_sandbox(&target_dir);
+                } else {
+                    println!("Offline Check: Found external dependencies: {}. We need to download these (Step 4 pending).", deps);
+                }
             }
         }
         Commands::Clean => {
