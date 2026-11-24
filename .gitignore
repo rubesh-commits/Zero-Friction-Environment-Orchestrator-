@@ -2,4 +2,8 @@
 ChemAI_Project/
 flask/
 dummy.py
-.workspaces/
+.workspaces/sand
+target/
+target/release/sand
+linux-orchestrator/target/
+

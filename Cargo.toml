@@ -1,10 +1,10 @@
 [package]
-name = "envbox"
+name = "sand"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "envbox"
+name = "sand"
 path = "src/main.rs"
 
 [dependencies]

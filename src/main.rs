@@ -18,7 +18,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 #[derive(Parser)]
-#[command(name = "envbox", version, about = "", long_about = None)]
+#[command(name = "sand", version, about = "", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<CliCommand>,
