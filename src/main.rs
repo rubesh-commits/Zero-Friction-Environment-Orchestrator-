@@ -2,8 +2,11 @@ use clap::{Parser, Subcommand};
 use serde::Deserialize;
 use serde_json::json;
 use std::env;
+use std::path::Path;
+use std::fs;
 use std::process::Command;
 mod resource_manager;
+mod dependency_manager;
 
 #[derive(Parser)]
 #[command(name = "Zero-Friction Orchestrator")]
@@ -41,10 +44,26 @@ fn resolve_target_path(target: &str) -> Option<String> {
         println!("Detected remote URL. Cloning {}...", target);
         let repo_name = target.split('/').last().unwrap_or("repo").replace(".git", "");
         
-        let status = Command::new("git").args(["clone", target]).status();
+        let workspace_dir = ".workspaces";
+        if !Path::new(workspace_dir).exists() {
+            let _ = fs::create_dir(workspace_dir);
+        }
+
+        let target_dir = format!("{}/{}", workspace_dir, repo_name);
+
+        // If we already cloned it recently, just use the existing folder
+        if Path::new(&target_dir).exists() {
+            println!("Repository already exists in {}. Using cached version.", target_dir);
+            return Some(target_dir);
+        }
+        
+        let status = Command::new("git")
+            .args(["clone", target, &target_dir])
+            .status();
+            
         if let Ok(stat) = status {
             if stat.success() {
-                return Some(repo_name);
+                return Some(target_dir);
             }
         }
         println!("Git clone failed.");
@@ -155,13 +174,20 @@ async fn analyze_codebase_with_groq(path: &str, host_py: &str, host_node: &str) 
     None
 }
 
+
+
 #[cfg(target_os = "linux")]
 fn build_ephemeral_sandbox(path: &str) {
-    println!("Spinning up ephemeral bwrap sandbox for {}...", path);
+    let current_dir = std::env::current_dir().unwrap();
+    // Swapped target_dir to path here so it matches the parameter
+    let venv_bin = format!("{}/{}/.venv/bin", current_dir.display(), path);
+    let current_path = std::env::var("PATH").unwrap_or_default();
+    let injected_path = format!("{}:{}", venv_bin, current_path);
     
+    println!("Spinning up ephemeral bwrap sandbox for {}...", path);
+
     let canonical = std::path::Path::new(path).canonicalize().unwrap();
     
-    // If the path is a file, grab its parent directory instead
     let dir_path = if canonical.is_file() {
         canonical.parent().unwrap().to_path_buf()
     } else {
@@ -180,6 +206,8 @@ fn build_ephemeral_sandbox(path: &str) {
         .arg("--share-net")
         .arg("--hostname").arg("sandbox")
         .arg("--setenv").arg("PS1").arg("[zero-friction] \\w $ ")
+        // Injected the PATH correctly into your main command chain right here
+        .arg("--setenv").arg("PATH").arg(&injected_path)
         .arg("--die-with-parent")
         .arg("bash")
         .arg("--norc") 
@@ -278,18 +306,23 @@ async fn main() {
                 println!("Offline mode engaged. Running deterministic checks...");
                 let deps = extract_dependencies_via_ast(&target_dir);
                 
-                if deps == "[]" {
+                if deps == "[]" || deps.trim().is_empty() {
                     println!("Offline Check: No third-party dependencies found. Safe to inject host runtime.");
                     
-                    // Freeze before sandbox
                     resource_manager::freeze_background_apps();
-                    
                     build_ephemeral_sandbox(&target_dir);
-                    
-                    // Thaw after sandbox exits
                     resource_manager::thaw_background_apps();
+                    
                 } else {
-                    println!("Offline Check: Found external dependencies: {}. We need to download these (Step 4 pending).", deps);
+                    println!("Offline Check: Found external dependencies: {}.", deps);
+                    
+                    if dependency_manager::setup_venv_and_install(&target_dir, &deps) {
+                        resource_manager::freeze_background_apps();
+                        build_ephemeral_sandbox(&target_dir);
+                        resource_manager::thaw_background_apps();
+                    } else {
+                        println!("Aborting sandbox execution due to dependency installation failure.");
+                    }
                 }
             }
         }
