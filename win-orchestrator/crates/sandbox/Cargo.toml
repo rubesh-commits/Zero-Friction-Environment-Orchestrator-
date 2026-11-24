@@ -1,0 +1,13 @@
+[package]
+name = "winorchestrator-sandbox"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+winorchestrator-core = { workspace = true }
+winorchestrator-analyzer = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+

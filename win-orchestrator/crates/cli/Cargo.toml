@@ -1,0 +1,25 @@
+[package]
+name = "winorchestrator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "winorchestrator"
+path = "src/main.rs"
+
+[dependencies]
+winorchestrator-core = { workspace = true }
+winorchestrator-git-acquire = { workspace = true }
+winorchestrator-analyzer = { workspace = true }
+winorchestrator-host-probe = { workspace = true }
+winorchestrator-provisioner = { workspace = true }
+winorchestrator-sandbox = { workspace = true }
+winorchestrator-snapshot = { workspace = true }
+winorchestrator-net-tree = { workspace = true }
+winorchestrator-workflow = { workspace = true }
+winorchestrator-gui = { workspace = true }
+winorchestrator-mcp = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,16 @@
+{
+  "name": "fresh-node-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Acceptance fixture for the Windows orchestrator",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js --self-test"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0"
+  }
+}

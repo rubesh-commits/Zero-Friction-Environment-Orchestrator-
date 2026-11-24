@@ -1,0 +1,5 @@
+# The GNU Windows target is used by the development machine for this port.
+# Statically link the C runtime so the release binary is a single self-contained
+# executable that does not require the MinGW runtime DLLs on a fresh machine.
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "target-feature=+crt-static"]
