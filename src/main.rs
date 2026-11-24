@@ -3,6 +3,7 @@ use serde::Deserialize;
 use serde_json::json;
 use std::env;
 use std::process::Command;
+mod resource_manager;
 
 #[derive(Parser)]
 #[command(name = "Zero-Friction Orchestrator")]
@@ -279,7 +280,14 @@ async fn main() {
                 
                 if deps == "[]" {
                     println!("Offline Check: No third-party dependencies found. Safe to inject host runtime.");
+                    
+                    // Freeze before sandbox
+                    resource_manager::freeze_background_apps();
+                    
                     build_ephemeral_sandbox(&target_dir);
+                    
+                    // Thaw after sandbox exits
+                    resource_manager::thaw_background_apps();
                 } else {
                     println!("Offline Check: Found external dependencies: {}. We need to download these (Step 4 pending).", deps);
                 }
