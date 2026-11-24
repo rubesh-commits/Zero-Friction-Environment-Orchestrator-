@@ -1,0 +1,14 @@
+/home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/deps/serde-0ed3dee3580f97d1.d: /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/build/serde-74b19f493d207f5a/out/private.rs
+
+/home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/deps/libserde-0ed3dee3580f97d1.rlib: /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/build/serde-74b19f493d207f5a/out/private.rs
+
+/home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/deps/libserde-0ed3dee3580f97d1.rmeta: /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/build/serde-74b19f493d207f5a/out/private.rs
+
+/home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/loafhere/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/build/serde-74b19f493d207f5a/out/private.rs:
+
+# env-dep:OUT_DIR=/home/loafhere/zero-friction-orchestrator/linux-orchestrator/target/debug/build/serde-74b19f493d207f5a/out

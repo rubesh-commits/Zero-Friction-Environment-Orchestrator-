@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crates/*"
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1.32", features = ["full"] }
