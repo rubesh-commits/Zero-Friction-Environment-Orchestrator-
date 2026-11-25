@@ -234,6 +234,7 @@ pub fn analyze_with(
                         kind: DependencyKind::Runtime,
                         source_file: file.relative.clone(),
                         origin: DependencyOrigin::Ast,
+                        language: Some(language),
                     });
                     if undeclared_seen.len() <= 20 {
                         plan.warnings.push(format!(
@@ -359,12 +360,7 @@ fn collect_files(root: &Path, options: &AnalyzeOptions) -> (Vec<SourceFile>, Vec
             if entry.depth() == 0 {
                 return true;
             }
-            !SKIP_DIRS.iter().any(|skip| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .eq_ignore_ascii_case(skip)
-            })
+            !is_ignored_directory(&entry.file_name().to_string_lossy())
         });
     for entry in walker {
         let entry = match entry {
@@ -404,6 +400,22 @@ fn collect_files(root: &Path, options: &AnalyzeOptions) -> (Vec<SourceFile>, Vec
     files.sort_by(|a, b| a.relative.cmp(&b.relative));
     let _ = options;
     (files, warnings)
+}
+
+/// Directories that should never contribute source or manifest data. Besides the
+/// explicit skip list, treat virtualenv-style names as ignored. Repositories use
+/// decoys such as `.venv_decoy/` or `venv_fixture/` to hide fixtures from tools;
+/// scanning them produces phantom dependencies that poison later installs.
+fn is_ignored_directory(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    if SKIP_DIRS.iter().any(|skip| lower == skip.to_ascii_lowercase()) {
+        return true;
+    }
+    lower.starts_with(".venv")
+        || lower.starts_with("venv")
+        || lower.starts_with("virtualenv")
+        || lower.ends_with("_venv")
+        || lower.ends_with("-venv")
 }
 
 fn normalize_name(name: &str) -> String {
@@ -481,7 +493,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("winorchestrator-analyzer-{name}-{stamp}"));
+        let dir = std::env::temp_dir().join(format!("linuxorchestrator-analyzer-{name}-{stamp}"));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -548,6 +560,33 @@ mod tests {
             .iter()
             .any(|d| d.name == "axios" && d.origin == DependencyOrigin::Ast));
         assert!(plan.warnings.iter().any(|w| w.contains("axios")));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn venv_like_decoy_directories_are_ignored() {
+        let dir = fixture("decoy");
+        fs::create_dir_all(dir.join(".venv_decoy")).unwrap();
+        fs::write(
+            dir.join(".venv_decoy/ignored_script.py"),
+            "import totally_fake_nonexistent_library_xyz\n",
+        )
+        .unwrap();
+        fs::write(dir.join("app.py"), "import sklearn\n").unwrap();
+
+        let plan = analyze(&dir, "demo").unwrap();
+        assert!(plan
+            .dependencies
+            .iter()
+            .any(|d| d.name == "sklearn" && d.origin == DependencyOrigin::Ast));
+        assert!(!plan
+            .dependencies
+            .iter()
+            .any(|d| d.name == "totally_fake_nonexistent_library_xyz"));
+        assert!(!plan
+            .warnings
+            .iter()
+            .any(|w| w.contains("totally_fake_nonexistent_library_xyz")));
         fs::remove_dir_all(&dir).unwrap();
     }
 

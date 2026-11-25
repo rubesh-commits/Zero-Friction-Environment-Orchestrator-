@@ -1,0 +1,15 @@
+[package]
+name = "workflow"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+linuxorchestrator_core = { path = "../core" }
+linuxorchestrator_analyzer = { path = "../analyzer" }
+git-acquire = { path = "../git-acquire" }
+host-probe = { path = "../host-probe" }
+provisioner = { path = "../provisioner" }
+sandbox = { path = "../sandbox" }
+snapshot = { path = "../snapshot" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -33,6 +33,18 @@ impl RunOptions { pub fn timeout(mut self, timeout: Duration) -> Self { self.tim
 pub fn hidden_command(program: impl AsRef<OsStr>) -> Command { Command::new(program) }
 
 pub fn run_capture(program: &str, args: &[&str], options: &RunOptions) -> CommandOutcome {
+    run_impl(program, args, options, false)
+}
+
+/// Like [`run_capture`], but forwards the child's stdout/stderr to this
+/// process' stderr as it arrives. Use this for long-running tools (package
+/// managers, compilers) so an interactive user sees progress instead of a
+/// silent pause.
+pub fn run_capture_streaming(program: &str, args: &[&str], options: &RunOptions) -> CommandOutcome {
+    run_impl(program, args, options, true)
+}
+
+fn run_impl(program: &str, args: &[&str], options: &RunOptions, stream_pipe: bool) -> CommandOutcome {
     let mut command = hidden_command(program);
     command.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     if let Some(cwd) = &options.cwd { command.current_dir(cwd); }
@@ -42,8 +54,8 @@ pub fn run_capture(program: &str, args: &[&str], options: &RunOptions) -> Comman
     
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
-    let out_reader = stdout.map(|mut stream| std::thread::spawn(move || { let mut b = Vec::new(); let _ = stream.read_to_end(&mut b); b }));
-    let err_reader = stderr.map(|mut stream| std::thread::spawn(move || { let mut b = Vec::new(); let _ = stream.read_to_end(&mut b); b }));
+    let out_reader = stdout.map(|stream| spawn_reader(stream, stream_pipe));
+    let err_reader = stderr.map(|stream| spawn_reader(stream, stream_pipe));
 
     let started = Instant::now();
     let mut timed_out = false;
@@ -62,6 +74,37 @@ pub fn run_capture(program: &str, args: &[&str], options: &RunOptions) -> Comman
     let stderr = err_reader.and_then(|h| h.join().ok()).map(|b| String::from_utf8_lossy(&b).to_string()).unwrap_or_default();
 
     CommandOutcome { program: program.to_string(), args: args.iter().map(|a| a.to_string()).collect(), success: status.map(|s| s.success()).unwrap_or(false), code: status.and_then(|s| s.code()), stdout, stderr, timed_out, spawn_error: None }
+}
+
+/// Read a child pipe to completion, optionally echoing each chunk to stderr so
+/// the user sees live output. The full contents are still returned so callers
+/// can inspect failures after the fact.
+fn spawn_reader<R: Read + Send + 'static>(
+    mut reader: R,
+    echo: bool,
+) -> std::thread::JoinHandle<Vec<u8>> {
+    std::thread::spawn(move || {
+        let mut collected = Vec::new();
+        if !echo {
+            let _ = reader.read_to_end(&mut collected);
+            return collected;
+        }
+        use std::io::Write;
+        let mut buffer = [0u8; 16 * 1024];
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(n) => {
+                    collected.extend_from_slice(&buffer[..n]);
+                    let mut target = std::io::stderr();
+                    let _ = target.write_all(&buffer[..n]);
+                    let _ = target.flush();
+                }
+                Err(_) => break,
+            }
+        }
+        collected
+    })
 }
 
 pub fn status_interactive(program: &str, args: &[String], cwd: &Path, envs: &[(String, String)]) -> Result<ExitStatus> {
