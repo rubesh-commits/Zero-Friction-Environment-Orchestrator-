@@ -295,6 +295,9 @@ pub fn write_snapshot(spec: &RestoreSpec, path: &Path) -> Result<()> {
                 linuxorchestrator_core::DependencyOrigin::Ast => "ast",
             })
         ));
+        if let Some(language) = dependency.language {
+            lines.push(format!("language = {}", quote(language.as_str())));
+        }
         lines.push(String::new());
     }
 
@@ -434,6 +437,7 @@ mod tests {
             kind: DependencyKind::Runtime,
             source_file: "requirements.txt".to_string(),
             origin: DependencyOrigin::Manifest,
+            language: Some(Language::Python),
         });
         plan.entrypoints.push(Entrypoint::new(
             EntrypointKind::PythonScript,
@@ -472,6 +476,7 @@ mod tests {
             }),
             profile: ExecutionProfile::default(),
             lifecycle: LifecycleState::Prepared,
+            pid: None,
             notes: vec!["injected host Python".to_string()],
             warnings: Vec::new(),
         }
@@ -518,6 +523,27 @@ mod tests {
         assert_eq!(plan.languages, vec![Language::Python]);
         assert_eq!(plan.entrypoints.len(), 1);
         assert_eq!(plan.requirements[0].minimum, Some(Version::new(3, 10, 0)));
+        linuxorchestrator_core::fsutil::remove_tree(&dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_dependencies_without_language_still_parse() {
+        let dir = scratch("legacy");
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("legacy.envspec.utf8");
+        let mut spec = RestoreSpec::from_record(&sample_record());
+        spec.dependencies = Vec::new();
+        write_snapshot(&spec, &file).unwrap();
+        let text = std::fs::read_to_string(&file).unwrap();
+        let legacy = format!(
+            "{text}\n[[dependencies]]\nname = \"requests\"\nkind = \"runtime\"\nsource_file = \"requirements.txt\"\norigin = \"manifest\"\n"
+        );
+        std::fs::write(&file, legacy).unwrap();
+
+        let loaded = read_snapshot(&file).unwrap();
+        assert_eq!(loaded.dependencies.len(), 1);
+        assert_eq!(loaded.dependencies[0].name, "requests");
+        assert_eq!(loaded.dependencies[0].language, None);
         linuxorchestrator_core::fsutil::remove_tree(&dir).unwrap();
     }
 

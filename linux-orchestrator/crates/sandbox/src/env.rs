@@ -4,6 +4,25 @@ use linuxorchestrator_core::{ExecutionProfile, RuntimeRecord};
 
 use crate::layout::SandboxLayout;
 
+/// Forward host display-related environment variables into the sandbox.
+/// This enables GUI applications (Qt, etc.) launched inside the sandbox to
+/// connect to the host's X11/Wayland display.
+fn forward_display_environment(vars: &mut BTreeMap<String, String>) {
+    // Forward native display variables.
+    for key in ["DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"] {
+        if let Ok(value) = std::env::var(key) {
+            if !value.is_empty() {
+                vars.insert(key.to_string(), value);
+            }
+        }
+    }
+    // Disable X11 MIT-SHM extension so Qt avoids shared-memory errors
+    // inside a sandboxed mount namespace.
+    if std::env::var_os("DISPLAY").is_some() {
+        vars.insert("QT_X11_NO_MITSHM".to_string(), "1".to_string());
+    }
+}
+
 /// A deliberately small, scoped environment. The host `PATH` is never used:
 /// only sandbox toolchains and the base system directories are visible.
 #[derive(Clone, Debug, Default)]
@@ -23,6 +42,7 @@ impl SandboxEnvironment {
         vars.insert("LC_ALL".to_string(), "C.UTF-8".to_string());
         vars.insert("LINUXORCHESTRATOR_SANDBOX".to_string(), layout.id.clone());
         vars.insert("TERM".to_string(), "xterm-256color".to_string());
+        forward_display_environment(&mut vars);
 
         let home = layout.home.display().to_string();
         vars.insert("HOME".to_string(), home.clone());

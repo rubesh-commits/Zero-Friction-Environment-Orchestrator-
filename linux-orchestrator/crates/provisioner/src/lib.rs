@@ -108,32 +108,78 @@ pub fn promote(runtimes: &[ProvisionedRuntime], user_toolchains: &Path, update_p
     Ok(report)
 }
 
-// Linux native PATH update via ~/.bashrc
-fn prepend_user_path(dirs: &[PathBuf]) -> Result<(bool, Option<PathBuf>)> {
-    let bashrc = std::env::var("HOME").map(|h| PathBuf::from(h).join(".bashrc")).unwrap_or_else(|_| PathBuf::from("/tmp/.bashrc"));
-    
-    let mut additions = Vec::new();
-    for dir in dirs {
-        let display = dir.display().to_string();
-        additions.push(display);
-    }
-    if additions.is_empty() { return Ok((false, None)); }
+const PATH_BLOCK_BEGIN: &str = "# >>> LinuxOrchestrator Keep & Promote >>>";
+const PATH_BLOCK_END: &str = "# <<< LinuxOrchestrator Keep & Promote <<<";
 
-    let new_path_block = format!("\n# WinOrchestrator Keep & Promote\nexport PATH=\"{}:$PATH\"\n", additions.join(":"));
-    
-    let current_content = std::fs::read_to_string(&bashrc).unwrap_or_default();
-    if current_content.contains(&additions.join(":")) {
+/// Idempotently add toolchain directories to `~/.bashrc`. The managed block is
+/// rewritten as a union, so repeated Keep runs never duplicate PATH entries.
+fn prepend_user_path(dirs: &[PathBuf]) -> Result<(bool, Option<PathBuf>)> {
+    if dirs.is_empty() {
         return Ok((false, None));
     }
-    
-    let backup = linuxorchestrator_core::paths::toolchains_dir().join(format!("bashrc-backup-{}.txt", unique_stamp()));
-    fsutil::write_utf8(&backup, &current_content)?;
-    
-    let mut file = std::fs::OpenOptions::new().append(true).create(true).open(&bashrc).map_err(|e| Error::Io { context: "appending to bashrc".to_string(), source: e })?;
-    use std::io::Write;
-    file.write_all(new_path_block.as_bytes()).map_err(|e| Error::Io { context: "writing bashrc".to_string(), source: e })?;
+    let bashrc = std::env::var("HOME")
+        .map(|home| PathBuf::from(home).join(".bashrc"))
+        .unwrap_or_else(|_| PathBuf::from("/tmp/.bashrc"));
+    let backup = linuxorchestrator_core::paths::toolchains_dir()
+        .join(format!("bashrc-backup-{}.txt", unique_stamp()));
+    let changed = update_bashrc_file(&bashrc, dirs, Some(&backup))?;
+    Ok((changed, changed.then_some(backup)))
+}
 
-    Ok((true, Some(backup)))
+/// Rewrite the managed block as a union of existing and new directories.
+/// Returns `true` when the file changed.
+fn update_bashrc_file(bashrc: &Path, dirs: &[PathBuf], backup: Option<&Path>) -> Result<bool> {
+    if dirs.is_empty() {
+        return Ok(false);
+    }
+    let original = std::fs::read_to_string(bashrc).unwrap_or_default();
+
+    let mut managed: BTreeSet<String> = BTreeSet::new();
+    let mut content = original.clone();
+    if let Some(start) = content.find(PATH_BLOCK_BEGIN) {
+        if let Some(relative_end) = content[start..].find(PATH_BLOCK_END) {
+            let end = start + relative_end + PATH_BLOCK_END.len();
+            managed.extend(parse_path_block(&content[start..end]));
+            content.replace_range(start..end, "");
+        }
+    }
+
+    let before = managed.len();
+    for dir in dirs {
+        managed.insert(dir.display().to_string());
+    }
+    if managed.len() == before {
+        return Ok(false);
+    }
+
+    if let Some(path) = backup {
+        fsutil::write_utf8(path, &original)?;
+    }
+    let new_content = format!(
+        "{}\n\n{PATH_BLOCK_BEGIN}\nexport PATH=\"{}:$PATH\"\n{PATH_BLOCK_END}\n",
+        content.trim_end(),
+        managed.into_iter().collect::<Vec<_>>().join(":")
+    );
+    fsutil::write_utf8(bashrc, &new_content)?;
+    Ok(true)
+}
+
+fn parse_path_block(block: &str) -> Vec<String> {
+    let mut dirs = Vec::new();
+    for line in block.lines() {
+        let Some(rest) = line.trim().strip_prefix("export PATH=\"") else {
+            continue;
+        };
+        let Some(value) = rest.strip_suffix(":$PATH\"") else {
+            continue;
+        };
+        for dir in value.split(':') {
+            if !dir.trim().is_empty() {
+                dirs.push(dir.to_string());
+            }
+        }
+    }
+    dirs
 }
 
 fn unique_stamp() -> String {
@@ -148,4 +194,44 @@ pub fn runtime_path_entries(runtimes: &[ProvisionedRuntime]) -> Vec<PathBuf> {
 pub fn remove_sandbox_tools(install_root: &Path) -> Result<()> {
     if install_root.exists() { fsutil::remove_tree(install_root)?; }
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_file(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "linuxorchestrator-provisioner-{name}-{}",
+            unique_stamp()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join(".bashrc")
+    }
+
+    #[test]
+    fn path_block_parses_directories() {
+        let block = format!("{PATH_BLOCK_BEGIN}\nexport PATH=\"/a:/b:$PATH\"\n{PATH_BLOCK_END}");
+        assert_eq!(parse_path_block(&block), vec!["/a", "/b"]);
+    }
+
+    #[test]
+    fn bashrc_update_is_idempotent_and_preserves_user_content() {
+        let bashrc = temp_file("idempotent");
+        std::fs::write(&bashrc, "export EDITOR=vi\n").unwrap();
+        let dirs = vec![PathBuf::from("/opt/tool-a"), PathBuf::from("/opt/tool-b")];
+
+        assert!(update_bashrc_file(&bashrc, &dirs, None).unwrap());
+        let first = std::fs::read_to_string(&bashrc).unwrap();
+        assert!(first.contains("export EDITOR=vi"));
+        assert_eq!(first.matches(PATH_BLOCK_BEGIN).count(), 1);
+        assert!(first.contains("/opt/tool-a:/opt/tool-b"));
+
+        assert!(!update_bashrc_file(&bashrc, &dirs, None).unwrap());
+        assert_eq!(std::fs::read_to_string(&bashrc).unwrap(), first);
+
+        assert!(update_bashrc_file(&bashrc, &[PathBuf::from("/opt/tool-c")], None).unwrap());
+        let merged = std::fs::read_to_string(&bashrc).unwrap();
+        assert_eq!(merged.matches(PATH_BLOCK_BEGIN).count(), 1);
+        assert!(merged.contains("/opt/tool-a:/opt/tool-b:/opt/tool-c"));
+    }
 }

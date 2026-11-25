@@ -635,15 +635,25 @@ pub fn find_stale_sandboxes() -> Vec<StaleSandbox> {
         let Ok(text) = std::fs::read_to_string(&meta_path) else {
             continue;
         };
-        let Ok(meta) = serde_json::from_str::<SandboxMeta>(&text) else {
+        let (id, pid, running) = if let Ok(record) =
+            serde_json::from_str::<linuxorchestrator_core::SandboxRecord>(&text)
+        {
+            (
+                record.id,
+                record.pid,
+                record.lifecycle == linuxorchestrator_core::LifecycleState::Running,
+            )
+        } else if let Ok(meta) = serde_json::from_str::<SandboxMeta>(&text) {
+            (meta.id, meta.pid, meta.status == "running")
+        } else {
             continue;
         };
-        let alive = meta.pid.map(linuxapi::is_pid_alive).unwrap_or(false);
-        if meta.status == "running" && !alive {
+        let alive = pid.map(linuxapi::is_pid_alive).unwrap_or(false);
+        if running && !alive {
             stale.push(StaleSandbox {
-                id: meta.id,
+                id,
                 path,
-                pid: meta.pid,
+                pid,
                 reason: "The orchestrator that owned this sandbox is no longer running."
                     .to_string(),
             });

@@ -264,8 +264,6 @@ fn split_operator(token: &str) -> (Op, &str) {
         (Op::Eq, rest)
     } else if let Some(rest) = token.strip_prefix("!=") {
         (Op::Ne, rest)
-    } else if let Some(rest) = token.strip_prefix("~=") {
-        (Op::Eq, rest)
     } else if let Some(rest) = token.strip_prefix(">") {
         (Op::Gt, rest)
     } else if let Some(rest) = token.strip_prefix("<") {
@@ -456,6 +454,21 @@ mod tests {
         assert!(!wildcard.satisfies(Version::new(19, 0, 0)));
         let any = VersionReq::parse("*").unwrap();
         assert!(any.satisfies(Version::new(1, 0, 0)));
+    }
+
+    #[test]
+    fn python_compatible_release_works() {
+        let req = VersionReq::parse("~=3.10").unwrap();
+        assert!(req.satisfies(Version::new(3, 12, 0)));
+        assert!(req.satisfies(Version::new(3, 10, 0)));
+        assert!(!req.satisfies(Version::new(4, 0, 0)));
+        assert!(!req.satisfies(Version::new(3, 9, 0)));
+        assert_eq!(req.minimum(), Some(Version::new(3, 10, 0)));
+        assert_eq!(req.upper_exclusive(), Some(Version::new(4, 0, 0)));
+
+        let patch = VersionReq::parse("~=3.10.2").unwrap();
+        assert!(patch.satisfies(Version::new(3, 10, 9)));
+        assert!(!patch.satisfies(Version::new(3, 11, 0)));
     }
 
     #[test]

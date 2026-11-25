@@ -65,7 +65,7 @@ impl Language {
     }
 }
 
-/// Runtime families the provisioner knows how to resolve on Windows.
+/// Runtime families the provisioner knows how to resolve on Linux.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeKind {
@@ -99,11 +99,11 @@ impl RuntimeKind {
 
     pub fn executable_names(self) -> &'static [&'static str] {
         match self {
-            RuntimeKind::Python => &["python.exe", "python3.exe", "py.exe"],
-            RuntimeKind::Node => &["node.exe"],
-            RuntimeKind::Java => &["java.exe", "javac.exe"],
-            RuntimeKind::Rust => &["rustc.exe", "cargo.exe"],
-            RuntimeKind::Go => &["go.exe"],
+            RuntimeKind::Python => &["python3", "python"],
+            RuntimeKind::Node => &["node"],
+            RuntimeKind::Java => &["java", "javac"],
+            RuntimeKind::Rust => &["rustc", "cargo"],
+            RuntimeKind::Go => &["go"],
         }
     }
 }
@@ -160,6 +160,10 @@ pub struct Dependency {
     pub kind: DependencyKind,
     pub source_file: String,
     pub origin: DependencyOrigin,
+    /// Ecosystem the dependency belongs to. Older restore files omit this, so
+    /// it stays optional for backward compatibility.
+    #[serde(default)]
+    pub language: Option<Language>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -279,7 +283,7 @@ pub struct HostRuntime {
     pub executable: PathBuf,
     pub version_output: String,
     pub source: String,
-    /// Related executables such as `javac.exe` or `npm.cmd`.
+    /// Related executables such as `javac` or `npm`.
     pub companions: BTreeMap<String, PathBuf>,
 }
 
@@ -448,6 +452,9 @@ pub struct SandboxRecord {
     pub launch: Option<LaunchRecord>,
     pub profile: ExecutionProfile,
     pub lifecycle: LifecycleState,
+    /// PID of the process that owned this sandbox, used to spot crashed runs.
+    #[serde(default)]
+    pub pid: Option<u32>,
     pub notes: Vec<String>,
     pub warnings: Vec<String>,
 }

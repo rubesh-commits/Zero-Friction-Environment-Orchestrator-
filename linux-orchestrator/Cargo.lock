@@ -50,6 +50,7 @@ dependencies = [
  "serde",
  "serde_json",
  "snapshot",
+ "workflow",
 ]
 
 [[package]]
@@ -268,6 +269,8 @@ name = "sandbox"
 version = "0.1.0"
 dependencies = [
  "linuxorchestrator_core",
+ "serde_json",
+ "walkdir",
 ]
 
 [[package]]
@@ -558,6 +561,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "workflow"
+version = "0.1.0"
+dependencies = [
+ "git-acquire",
+ "host-probe",
+ "linuxorchestrator_analyzer",
+ "linuxorchestrator_core",
+ "provisioner",
+ "sandbox",
+ "serde",
+ "serde_json",
+ "snapshot",
 ]
 
 [[package]]

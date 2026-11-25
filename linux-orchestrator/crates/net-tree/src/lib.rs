@@ -284,12 +284,12 @@ mod tests {
             ProcessEntry {
                 pid: 100,
                 parent_pid: 0,
-                name: "server.exe".to_string(),
+                name: "server".to_string(),
             },
             ProcessEntry {
                 pid: 200,
                 parent_pid: 100,
-                name: "client.exe".to_string(),
+                name: "client".to_string(),
             },
         ];
         let text = "\
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(report.receiving_count(), 1);
         assert_eq!(report.internal_count(), 1);
         let tree = report.render_tree();
-        assert!(tree.contains("server.exe"));
+        assert!(tree.contains("server"));
     }
 
     #[test]
@@ -323,7 +323,7 @@ mod tests {
         let table = vec![ProcessEntry {
             pid: 1,
             parent_pid: 0,
-            name: "x.exe".to_string(),
+            name: "x".to_string(),
         }];
         let report = report_from(&[999], &table, "");
         assert!(report.nodes.is_empty());

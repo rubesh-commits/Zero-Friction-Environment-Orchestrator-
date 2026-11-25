@@ -158,6 +158,7 @@ fn parse_requirements(
             kind: DependencyKind::Runtime,
             source_file: relative.to_string(),
             origin: DependencyOrigin::Manifest,
+            language: Some(Language::Python),
         }));
     }
 }
@@ -296,6 +297,7 @@ fn parse_pyproject(path: &Path, relative: &str, bundle: &mut ManifestBundle) {
                     kind: DependencyKind::Runtime,
                     source_file: relative.to_string(),
                     origin: DependencyOrigin::Manifest,
+                    language: Some(Language::Python),
                 }));
             }
         }
@@ -330,6 +332,7 @@ fn add_python_dep_array(
                     kind,
                     source_file: source.to_string(),
                     origin: DependencyOrigin::Manifest,
+                    language: Some(Language::Python),
                 }));
             }
         }
@@ -361,6 +364,7 @@ fn parse_setup(path: &Path, relative: &str, bundle: &mut ManifestBundle) {
                     kind: DependencyKind::Runtime,
                     source_file: relative.to_string(),
                     origin: DependencyOrigin::Manifest,
+                    language: Some(Language::Python),
                 }));
             }
         }
@@ -381,6 +385,7 @@ fn parse_setup(path: &Path, relative: &str, bundle: &mut ManifestBundle) {
                                 kind: DependencyKind::Runtime,
                                 source_file: relative.to_string(),
                                 origin: DependencyOrigin::Manifest,
+                                language: Some(Language::Python),
                             }));
                         }
                     } else {
@@ -401,6 +406,7 @@ fn parse_setup(path: &Path, relative: &str, bundle: &mut ManifestBundle) {
                         kind: DependencyKind::Runtime,
                         source_file: relative.to_string(),
                         origin: DependencyOrigin::Manifest,
+                        language: Some(Language::Python),
                     }));
                 }
             }
@@ -442,6 +448,7 @@ fn parse_package_json(path: &Path, relative: &str, bundle: &mut ManifestBundle) 
                     kind,
                     source_file: relative.to_string(),
                     origin: DependencyOrigin::Manifest,
+                    language: Some(Language::JavaScript),
                 }));
             }
         }
@@ -547,6 +554,7 @@ fn parse_cargo(path: &Path, relative: &str, root: &Path, bundle: &mut ManifestBu
                     kind,
                     source_file: relative.to_string(),
                     origin: DependencyOrigin::Manifest,
+                    language: Some(Language::Rust),
                 }));
             }
         }
@@ -605,6 +613,7 @@ fn parse_pom(path: &Path, relative: &str, root: &Path, bundle: &mut ManifestBund
             kind,
             source_file: relative.to_string(),
             origin: DependencyOrigin::Manifest,
+            language: Some(Language::Java),
         }));
     }
 
@@ -664,6 +673,7 @@ fn parse_gradle(path: &Path, relative: &str, root: &Path, bundle: &mut ManifestB
             kind,
             source_file: relative.to_string(),
             origin: DependencyOrigin::Manifest,
+            language: Some(Language::Java),
         }));
     }
     if text.contains("org.springframework.boot") {
@@ -728,6 +738,7 @@ fn parse_go_mod(path: &Path, relative: &str, bundle: &mut ManifestBundle) {
                     kind: DependencyKind::Runtime,
                     source_file: relative.to_string(),
                     origin: DependencyOrigin::Manifest,
+                    language: Some(Language::Go),
                 }));
             }
         }

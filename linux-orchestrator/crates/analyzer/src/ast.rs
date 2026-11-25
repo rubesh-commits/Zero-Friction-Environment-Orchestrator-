@@ -803,7 +803,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn scan(name: &str, language: Language, source: &str) -> AstReport {
-        let dir = std::env::temp_dir().join("winorchestrator-ast-tests");
+        let dir = std::env::temp_dir().join("linuxorchestrator-ast-tests");
         std::fs::create_dir_all(&dir).unwrap();
         let ext = match language {
             Language::Python => "py",
